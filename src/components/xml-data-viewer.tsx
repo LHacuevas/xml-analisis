@@ -104,21 +104,21 @@ export default function XmlDataViewer() {
           const xmlDoc = parser.parseFromString(content, "text/xml")
           const tables = xmlDoc.getElementsByTagName("Table1")
           const parsedData: XMLData[] = []
-
+          const allColumnsSet = new Set<string>();
           for (let i = 0; i < tables.length; i++) {
             const table = tables[i]
             const tableData: XMLData = {}
             for (let j = 0; j < table.children.length; j++) {
               const child = table.children[j]
               tableData[child.tagName] = child.textContent || ''
+              allColumnsSet.add(child.tagName);
             }
             parsedData.push(tableData)
           }
-
-          setXmlData(parsedData)
-          const columns = Object.keys(parsedData[0] || {})
-          setAllColumns(columns)
-          setVisibleColumns(columns)
+          const allColumnsArray = Array.from(allColumnsSet);
+          setXmlData(parsedData)              
+          setAllColumns(allColumnsArray);
+          setVisibleColumns(allColumnsArray);
           setExcludedColumns([])
           setError(null)
         } catch (err) {
@@ -191,7 +191,7 @@ export default function XmlDataViewer() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">XML Data Viewer 4</h1>
+      <h1 className="text-2xl font-bold mb-4">XML Data Viewer 5</h1>
       <div className="mb-4">
         <Input
           type="file"
