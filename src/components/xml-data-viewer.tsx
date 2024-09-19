@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Table } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 type XMLData = {
-  [key: string]: string | object | any[]
+  [key: string]: string | object []
 }
 
 export default function XmlDataViewer() {
@@ -27,8 +27,8 @@ export default function XmlDataViewer() {
   const [error, setError] = useState<string | null>(null)
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
-
+  const itemsPerPage = 100
+  const tableRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const savedColumns = localStorage.getItem('visibleColumns')
     if (savedColumns) {
@@ -65,7 +65,7 @@ export default function XmlDataViewer() {
   }
 
   const sortedData = React.useMemo(() => {
-    let sortableItems = [...xmlData]
+    const sortableItems = [...xmlData]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -122,10 +122,10 @@ export default function XmlDataViewer() {
           setExcludedColumns([])
           setError(null)
         } catch (err) {
-          setError("Error parsing XML file. Please make sure it's a valid XML.")
+          setError("Error parsing XML file. Please make sure it's a valid XML." + err)
         }
       }
-      reader.readAsText(file)
+      reader.readAsText(file, 'UTF-8')
     }
   }
 
@@ -138,10 +138,54 @@ export default function XmlDataViewer() {
       </div>
     ) : name
   }
+  const TruncatedCell = ({ content }: { content: string }) => {
+    const [isExpanded, setIsExpanded] = useState(false)
+    const maxLength = 50  // Ajusta este valor según tus necesidades
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div 
+              className="cursor-pointer"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? content : `${content.slice(0, maxLength)}${content.length > maxLength ? '...' : ''}`}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{content}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+  useEffect(() => {
+    const handleScroll = () => {
+      if (tableRef.current) {
+        const { scrollLeft } = tableRef.current
+        const header = tableRef.current.querySelector('thead') as HTMLTableSectionElement
+        if (header) {
+          header.style.transform = `translateX(-${scrollLeft}px)`
+        }
+      }
+    }
+
+    const tableElement = tableRef.current
+    if (tableElement) {
+      tableElement.addEventListener('scroll', handleScroll)
+    }
+
+    return () => {
+      if (tableElement) {
+        tableElement.removeEventListener('scroll', handleScroll)
+      }
+    }
+  }, [])
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">XML Data Viewer</h1>
+      <h1 className="text-2xl font-bold mb-4">XML Data Viewer 4</h1>
       <div className="mb-4">
         <Input
           type="file"
@@ -185,12 +229,19 @@ export default function XmlDataViewer() {
               </div>
             </div>
           )}
-          <div className="overflow-x-auto">
+           <div 
+            ref={tableRef}
+            className="overflow-auto max-h-[700vh] border border-gray-200 rounded-lg"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#4B5563 #E5E7EB',
+            }}
+          >
             <Table>
-              <thead>
+              <thead className="sticky top-0 bg-white z-10">
                 <tr>
                   {visibleColumns.map(column => (
-                    <th key={column} className="px-4 py-2">
+                    <th key={column} className="px-4 py-2 whitespace-nowrap">
                       <div className="flex items-center justify-between">
                         <TooltipProvider>
                           <Tooltip>
@@ -237,16 +288,19 @@ export default function XmlDataViewer() {
                   <tr key={index}>
                     {visibleColumns.map(column => (
                       <td key={column} className="border px-4 py-2">
-                        {typeof item[column] === 'object'
-                          ? JSON.stringify(item[column])
-                          : String(item[column])}
+                         {typeof item[column] === 'object' ? (
+                            <TruncatedCell content={JSON.stringify(item[column])} />
+                          ) : (
+                            <TruncatedCell content={String(item[column])} />
+                          )}
                       </td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </Table>
-          </div>
+            </div>
+          
           <div className="mt-4 flex justify-between items-center">
             <Button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
