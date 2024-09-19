@@ -1,5 +1,5 @@
 'use client'
-
+import styles from './XmlDataViewer.module.css';
 import React, { useState, useEffect, useRef } from 'react'
 import { Table } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -138,20 +138,26 @@ export default function XmlDataViewer() {
       </div>
     ) : name
   }
-  const TruncatedCell = ({ content }: { content: string }) => {
+  const TruncatedCell = ({ content, isFirstColumn }: { content: string , isFirstColumn: boolean }) => {
     const [isExpanded, setIsExpanded] = useState(false)
     const maxLength = 50  // Ajusta este valor según tus necesidades
-
+    if (!content) return <div></div>; // Retorna un div vacío si no hay contenido
+    const handleClick = (e: React.MouseEvent) => {
+      if (!isFirstColumn) {
+        e.stopPropagation();
+        setIsExpanded(!isExpanded);
+      }
+    };
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div 
-              className="cursor-pointer"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? content : `${content.slice(0, maxLength)}${content.length > maxLength ? '...' : ''}`}
-            </div>
+          <div 
+            className={`cursor-${isFirstColumn ? 'pointer' : 'default'}`}
+            onClick={handleClick}
+          >
+            {isExpanded ? content : `${content.slice(0, maxLength)}${content.length > maxLength ? '...' : ''}`}
+          </div>
           </TooltipTrigger>
           <TooltipContent>
             <p>{content}</p>
@@ -237,11 +243,12 @@ export default function XmlDataViewer() {
               scrollbarColor: '#4B5563 #E5E7EB',
             }}
           >
-            <Table>
-              <thead className="sticky top-0 bg-white z-10">
+            <div className={styles.tableContainer}>
+    <Table className={styles.table}>
+      <thead className={styles.thead}>
                 <tr>
                   {visibleColumns.map(column => (
-                    <th key={column} className="px-4 py-2 whitespace-nowrap">
+                    <th key={column} className={styles.th}>
                       <div className="flex items-center justify-between">
                         <TooltipProvider>
                           <Tooltip>
@@ -286,21 +293,31 @@ export default function XmlDataViewer() {
               <tbody>
                 {paginatedData.map((item, index) => (
                   <tr key={index}>
-                    {visibleColumns.map(column => (
-                      <td key={column} className="border px-4 py-2">
-                         {typeof item[column] === 'object' ? (
-                            <TruncatedCell content={JSON.stringify(item[column])} />
-                          ) : (
-                            <TruncatedCell content={String(item[column])} />
-                          )}
-                      </td>
-                    ))}
+                    {visibleColumns.map((column, colIndex) => (
+            <td 
+              key={column} 
+              className={styles.td}
+              onClick={colIndex === 0 ? () => window.open(`${item[column]}.pdf`, '_blank') : undefined}
+              style={colIndex === 0 ? { cursor: 'pointer' } : undefined}
+            >
+              <TruncatedCell 
+  content={
+    item[column] !== undefined && item[column] !== null
+      ? (typeof item[column] === 'object'
+        ? JSON.stringify(item[column])
+        : String(item[column]))
+      : ''
+  } 
+  isFirstColumn={colIndex === 0}
+/>
+            </td>
+          ))}
                   </tr>
                 ))}
               </tbody>
             </Table>
             </div>
-          
+          </div>
           <div className="mt-4 flex justify-between items-center">
             <Button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
